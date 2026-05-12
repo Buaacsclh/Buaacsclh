@@ -28,6 +28,11 @@
 - /api/recognize：黑图返回 no_face，符合预期
 - /health：返回 200
 
+### Git 状态
+- 远程仓库：https://github.com/Buaacsclh/Buaacsclh.git
+- 最新提交：`4bf029e` feat: PC 端核心功能完成
+- 已推送到 origin/master
+
 ### 下次继续
 - 阶段三：ESP32 端核心功能
   - PlatformIO 项目初始化
