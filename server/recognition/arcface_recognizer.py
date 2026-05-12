@@ -29,19 +29,40 @@ class ArcFaceRecognizer:
         except Exception:
             self.app.prepare(ctx_id=-1, det_size=(640, 640))
 
-    def extract_embedding(self, face_image: np.ndarray) -> np.ndarray | None:
-        """从人脸图片中提取特征向量。
+    def extract_embedding(self, image: np.ndarray) -> np.ndarray | None:
+        """从图片中提取人脸特征向量。
 
         Args:
-            face_image: BGR 格式的人脸图片（已裁剪）
+            image: BGR 格式的原始图片
 
         Returns:
             512 维特征向量，如果未检测到人脸则返回 None
         """
-        faces = self.app.get(face_image)
+        faces = self.app.get(image)
         if not faces:
             return None
         return faces[0].embedding
+
+    def extract_all_embeddings(
+        self, image: np.ndarray
+    ) -> list[tuple[np.ndarray, tuple[int, int, int, int]]]:
+        """从图片中提取所有人脸的特征向量和边界框。
+
+        Args:
+            image: BGR 格式的原始图片
+
+        Returns:
+            人脸列表，每个元素为 (embedding, (x1, y1, x2, y2))
+        """
+        faces = self.app.get(image)
+        if not faces:
+            return []
+        result = []
+        for face in faces:
+            embedding = face.embedding
+            bbox = tuple(map(int, face.bbox))
+            result.append((embedding, bbox))
+        return result
 
     def find_match(
         self,

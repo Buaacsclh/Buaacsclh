@@ -30,8 +30,8 @@
 
 ### Git 状态
 - 远程仓库：https://github.com/Buaacsclh/Buaacsclh.git
-- 最新提交：`4bf029e` feat: PC 端核心功能完成
-- 已推送到 origin/master
+- 最新提交：`c08e638` feat: ESP32 固件开发 + 摄像头查看页面
+- 已提交待推送
 
 ### 2026-05-12 补充修复
 - [x] fix: main.py — validation_exception_handler 返回 JSONResponse(422) 而非 dict(200)
@@ -65,7 +65,41 @@
 - [ ] 端到端人脸识别验证
 - [ ] OLED 显示模块（用户暂未购买）
 
-### 下次继续
-- 录入人脸并测试识别效果
-- 优化识别精度和响应速度
-- 更新 project.md 和 README.md
+## 2026-05-12 - 功能完善
+
+### 完成内容
+
+**人脸录入与识别功能**
+- [x] 人脸录入：用户准备 7 张照片，运行 enroll_face.py 成功录入 linhao
+- [x] 人脸识别测试：API 返回 `{"status":"ok","name":"linhao","confidence":0.87}`
+- [x] 服务器启动测试：端到端识别流程正常
+
+**多人脸识别支持**
+- [x] 修改 arcface_recognizer.py — 添加 extract_all_embeddings 方法
+- [x] 修改 routes.py — /api/recognize 接口支持返回多个人脸结果
+- [x] 新的返回格式：`{"status":"ok","faces":[{"name":"linhao","confidence":0.87,"bbox":[...]}]}`
+
+**监控界面重新设计**
+- [x] 重新设计 /camera 页面布局（左右分栏详细版）
+- [x] 左边：大画面显示 ESP32-CAM 实时视频
+- [x] 右边：识别统计 + 识别结果列表（支持多人脸）
+- [x] 显示 FPS、分辨率、时间等信息
+- [x] 深色主题，类似监控界面
+
+**网页端人脸录入功能**
+- [x] 新增 /enroll 页面 — 人脸录入界面
+- [x] 新增 POST /api/enroll 接口 — 批量上传照片录入人脸
+- [x] 新增 GET /api/faces 接口 — 获取已录入的人脸列表
+- [x] 支持拖拽上传、多张照片、实时预览
+- [x] 两个页面之间添加导航链接
+
+### 测试结果
+- 多人脸识别 API：正常返回多个人脸结果
+- 监控界面：实时更新，显示识别统计
+- 人脸录入页面：上传照片、输入名字、提交成功
+- 已录入人脸列表：正确显示 linhao
+
+### 待完成
+- [ ] GPU 加速（用户正在下载 CUDA Toolkit）
+- [ ] 推送代码到 GitHub
+- [ ] 更新 project.md 和 README.md
