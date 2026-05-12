@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     server_port: int = 8000
 
     # YOLO 人脸检测
-    yolo_model_path: str = "yolov8n-face.pt"
+    yolo_model_path: str = str(Path(__file__).parent.parent / "models" / "yolov8n-face.pt")
     yolo_confidence_threshold: float = 0.5
 
     # ArcFace 人脸识别
