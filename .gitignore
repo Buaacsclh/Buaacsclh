@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+.venv/
+venv/
+env/
+.env
+
+# C/C++
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.d
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+platformio.ini.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Models (large files, download separately)
+*.pt
+*.onnx
+models/*.pt
+models/*.onnx
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Face database feature files
+face_db/*.npy
+
+# Logs
+*.log
+logs/
