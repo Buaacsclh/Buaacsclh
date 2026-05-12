@@ -24,7 +24,10 @@ class ArcFaceRecognizer:
             root=settings.model_dir,
             providers=["CUDAExecutionProvider", "CPUExecutionProvider"],
         )
-        self.app.prepare(ctx_id=0, det_size=(640, 640))
+        try:
+            self.app.prepare(ctx_id=0, det_size=(640, 640))
+        except Exception:
+            self.app.prepare(ctx_id=-1, det_size=(640, 640))
 
     def extract_embedding(self, face_image: np.ndarray) -> np.ndarray | None:
         """从人脸图片中提取特征向量。

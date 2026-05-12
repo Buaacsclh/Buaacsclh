@@ -1,6 +1,9 @@
+import os
+import time
 import cv2
 import numpy as np
 from fastapi import APIRouter, File, UploadFile, HTTPException
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from database.face_db import get_face_db
@@ -8,6 +11,11 @@ from detection.yolo_detector import get_detector
 from recognition.arcface_recognizer import get_recognizer
 
 router = APIRouter()
+
+# 存储最新图片的目录
+_latest_img_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "runtime")
+os.makedirs(_latest_img_dir, exist_ok=True)
+_latest_img_path = os.path.join(_latest_img_dir, "latest.jpg")
 
 
 class RecognizeResponse(BaseModel):
@@ -53,6 +61,9 @@ async def recognize(image: UploadFile = File(...)) -> RecognizeResponse:
     if img is None:
         raise HTTPException(status_code=400, detail="无法解码图片")
 
+    # 保存最新图片
+    cv2.imwrite(_latest_img_path, img)
+
     # YOLO 人脸检测
     detector = get_detector()
     detections = detector.detect_faces(img)
@@ -84,3 +95,44 @@ async def recognize(image: UploadFile = File(...)) -> RecognizeResponse:
         return RecognizeResponse(status="no_face", name="未知", confidence=match.confidence)
 
     return RecognizeResponse(status="ok", name=match.name, confidence=match.confidence)
+
+
+@router.get("/api/latest_image")
+async def latest_image():
+    """返回 ESP32-CAM 最新拍摄的图片。"""
+    if not os.path.exists(_latest_img_path):
+        raise HTTPException(status_code=404, detail="暂无图片")
+    with open(_latest_img_path, "rb") as f:
+        img_bytes = f.read()
+    return StreamingResponse(
+        iter([img_bytes]),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-cache"},
+    )
+
+
+@router.get("/camera", response_class=HTMLResponse)
+async def camera_page():
+    """ESP32-CAM 实时画面查看页面。"""
+    return """<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>ESP32-CAM 实时画面</title>
+    <style>
+        body { background: #1a1a2e; color: #eee; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
+        h1 { color: #0f3460; }
+        img { max-width: 100%; border: 2px solid #0f3460; border-radius: 8px; }
+        .info { color: #888; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>ESP32-CAM 实时画面</h1>
+    <img id="stream" src="/api/latest_image" />
+    <p class="info">每 0.5 秒自动刷新 | 画面来自 ESP32-CAM</p>
+    <script>
+        const img = document.getElementById('stream');
+        setInterval(() => { img.src = '/api/latest_image?t=' + Date.now(); }, 500);
+    </script>
+</body>
+</html>"""

@@ -1,6 +1,7 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
 from api.routes import router
 from config import settings
@@ -17,12 +18,15 @@ app.include_router(router)
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
     """统一参数校验错误响应。"""
-    return {
-        "status": "error",
-        "name": "",
-        "confidence": 0.0,
-        "detail": str(exc),
-    }
+    return JSONResponse(
+        status_code=422,
+        content={
+            "status": "error",
+            "name": "",
+            "confidence": 0.0,
+            "detail": str(exc),
+        },
+    )
 
 
 if __name__ == "__main__":
