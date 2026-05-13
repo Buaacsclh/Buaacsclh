@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>事件驱动边缘视觉识别系统</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e14;
+            --bg-secondary: #0f1419;
+            --bg-card: #141921;
+            --bg-card-hover: #1a2029;
+            --border-primary: #1e2733;
+            --border-accent: #00d4ff;
+            --text-primary: #e8edf3;
+            --text-secondary: #7a8ba3;
+            --text-muted: #4a5568;
+            --accent-cyan: #00d4ff;
+            --accent-cyan-dim: rgba(0, 212, 255, 0.15);
+            --accent-green: #00ff88;
+            --accent-green-dim: rgba(0, 255, 136, 0.12);
+            --accent-amber: #ffb800;
+            --accent-amber-dim: rgba(255, 184, 0, 0.12);
+            --accent-red: #ff3366;
+            --accent-red-dim: rgba(255, 51, 102, 0.12);
+            --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.3);
+            --glow-green: 0 0 15px rgba(0, 255, 136, 0.25);
+            --font-mono: 'JetBrains Mono', monospace;
+            --font-sans: 'Inter', -apple-system, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* 背景网格效果 */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                linear-gradient(90deg, transparent 49.5%, rgba(0, 212, 255, 0.03) 49.5%, rgba(0, 212, 255, 0.03) 50.5%, transparent 50.5%),
+                linear-gradient(0deg, transparent 49.5%, rgba(0, 212, 255, 0.03) 49.5%, rgba(0, 212, 255, 0.03) 50.5%, transparent 50.5%);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* 顶部导航 */
+        .header {
+            position: relative;
+            z-index: 10;
+            background: linear-gradient(180deg, rgba(15, 20, 25, 0.98) 0%, rgba(15, 20, 25, 0.95) 100%);
+            border-bottom: 1px solid var(--border-primary);
+            padding: 0 32px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            backdrop-filter: blur(20px);
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+            opacity: 0.5;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-green));
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            box-shadow: var(--glow-cyan);
+        }
+
+        .header h1 {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 1px;
+        }
+
+        .header-subtitle {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--accent-cyan);
+            background: var(--accent-cyan-dim);
+        }
+
+        .nav-links a.active {
+            color: var(--accent-cyan);
+            background: var(--accent-cyan-dim);
+        }
+
+        .status-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding-left: 24px;
+            border-left: 1px solid var(--border-primary);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            position: relative;
+        }
+
+        .status-dot.online {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+
+        .status-dot.online::after {
+            content: '';
+            position: absolute;
+            top: -3px;
+            left: -3px;
+            right: -3px;
+            bottom: -3px;
+            border-radius: 50%;
+            border: 1px solid var(--accent-green);
+            animation: pulse-ring 2s ease-out infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        .event-counter {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--accent-cyan);
+            background: var(--accent-cyan-dim);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        /* 主容器 */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 32px;
+        }
+
+        /* 统计卡片 */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            padding: 20px 24px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-cyan), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .stat-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-card:nth-child(1) { --card-accent: var(--accent-cyan); }
+        .stat-card:nth-child(2) { --card-accent: var(--accent-green); }
+        .stat-card:nth-child(3) { --card-accent: var(--accent-amber); }
+        .stat-card:nth-child(4) { --card-accent: var(--accent-red); }
+
+        .stat-card:nth-child(1)::before { background: linear-gradient(90deg, var(--accent-cyan), transparent); }
+        .stat-card:nth-child(2)::before { background: linear-gradient(90deg, var(--accent-green), transparent); }
+        .stat-card:nth-child(3)::before { background: linear-gradient(90deg, var(--accent-amber), transparent); }
+        .stat-card:nth-child(4)::before { background: linear-gradient(90deg, var(--accent-red), transparent); }
+
+        .stat-label {
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+            letter-spacing: -1px;
+        }
+
+        .stat-card:nth-child(1) .stat-value { color: var(--accent-cyan); }
+        .stat-card:nth-child(2) .stat-value { color: var(--accent-green); }
+        .stat-card:nth-child(3) .stat-value { color: var(--accent-amber); }
+        .stat-card:nth-child(4) .stat-value { color: var(--accent-red); }
+
+        .stat-unit {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-left: 4px;
+        }
+
+        /* 主内容区 */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 212, 255, 0.3);
+        }
+
+        .card-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-title {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .card-badge {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--accent-cyan);
+            background: var(--accent-cyan-dim);
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* 关键帧区域 */
+        .frame-container {
+            position: relative;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border-primary);
+        }
+
+        .frame-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .frame-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+
+        .frame-corner {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-color: var(--accent-cyan);
+            border-style: solid;
+            border-width: 0;
+        }
+
+        .frame-corner.tl { top: 12px; left: 12px; border-top-width: 2px; border-left-width: 2px; }
+        .frame-corner.tr { top: 12px; right: 12px; border-top-width: 2px; border-right-width: 2px; }
+        .frame-corner.bl { bottom: 12px; left: 12px; border-bottom-width: 2px; border-left-width: 2px; }
+        .frame-corner.br { bottom: 12px; right: 12px; border-bottom-width: 2px; border-right-width: 2px; }
+
+        .frame-status {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: rgba(10, 14, 20, 0.85);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border-primary);
+        }
+
+        .frame-time {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: rgba(10, 14, 20, 0.85);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+        }
+
+        .frame-meta {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .frame-meta-item {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .frame-meta-item .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        .frame-meta-item.success .dot { background: var(--accent-green); }
+        .frame-meta-item.warning .dot { background: var(--accent-amber); }
+
+        /* 识别结果区域 */
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .result-item {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .result-item:hover {
+            border-color: var(--border-accent);
+            background: var(--bg-card-hover);
+        }
+
+        .result-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-family: var(--font-mono);
+        }
+
+        .result-value {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .result-value.success { color: var(--accent-green); }
+        .result-value.warning { color: var(--accent-amber); }
+        .result-value.error { color: var(--accent-red); }
+
+        .waiting-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .waiting-icon {
+            width: 48px;
+            height: 48px;
+            border: 2px solid var(--border-primary);
+            border-top-color: var(--accent-cyan);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .waiting-text {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* 事件记录表格 */
+        .event-table-wrapper {
+            overflow-x: auto;
+        }
+
+        .event-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .event-table thead {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .event-table th {
+            background: var(--bg-secondary);
+            padding: 14px 16px;
+            text-align: left;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-primary);
+        }
+
+        .event-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(30, 39, 51, 0.5);
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .event-table tbody tr {
+            transition: all 0.15s ease;
+        }
+
+        .event-table tbody tr:hover {
+            background: rgba(0, 212, 255, 0.04);
+        }
+
+        .event-table tbody tr:hover td {
+            color: var(--text-primary);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .badge-success {
+            background: var(--accent-green-dim);
+            color: var(--accent-green);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        .badge-success::before { background: var(--accent-green); }
+
+        .badge-warning {
+            background: var(--accent-amber-dim);
+            color: var(--accent-amber);
+            border: 1px solid rgba(255, 184, 0, 0.2);
+        }
+        .badge-warning::before { background: var(--accent-amber); }
+
+        .badge-error {
+            background: var(--accent-red-dim);
+            color: var(--accent-red);
+            border: 1px solid rgba(255, 51, 102, 0.2);
+        }
+        .badge-error::before { background: var(--accent-red); }
+
+        .empty-state {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+
+        /* 扫描线效果（可选，增加复古感） */
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 212, 255, 0.01) 2px,
+                rgba(0, 212, 255, 0.01) 4px
+            );
+            pointer-events: none;
+            z-index: 999;
+            opacity: 0.3;
+        }
+
+        /* 动画 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .stat-card, .card {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.15s; }
+        .stat-card:nth-child(3) { animation-delay: 0.2s; }
+        .stat-card:nth-child(4) { animation-delay: 0.25s; }
+
+        .main-grid .card:nth-child(1) { animation-delay: 0.3s; }
+        .main-grid .card:nth-child(2) { animation-delay: 0.35s; }
+    </style>
+</head>
+<body>
+    <!-- 扫描线效果 -->
+    <div class="scanline"></div>
+
+    <!-- 顶部导航 -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+            </div>
+            <div>
+                <h1>事件驱动边缘视觉识别系统</h1>
+                <div class="header-subtitle">Event-Driven Edge Vision Recognition</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <nav class="nav-links">
+                <a href="/camera" class="active">识别看板</a>
+                <a href="/enroll">人脸录入</a>
+            </nav>
+            <div class="status-group">
+                <div class="status-indicator">
+                    <span class="status-dot online"></span>
+                    <span>ESP32-CAM</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot online"></span>
+                    <span>Server</span>
+                </div>
+                <div class="event-counter" id="event-count">EVENTS: 0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 主容器 -->
+    <div class="container">
+        <!-- 统计卡片 -->
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-label">上传帧数</div>
+                <div class="stat-value" id="stat-uploaded">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">识别事件</div>
+                <div class="stat-value" id="stat-events">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">处理耗时</div>
+                <div class="stat-value" id="stat-process-time">--<span class="stat-unit">ms</span></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">最近置信度</div>
+                <div class="stat-value" id="stat-last-confidence">--<span class="stat-unit">%</span></div>
+            </div>
+        </div>
+
+        <!-- 主内容区 -->
+        <div class="main-grid">
+            <!-- 左侧：最近关键帧 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">最近识别关键帧</span>
+                    <span class="card-badge">LIVE FEED</span>
+                </div>
+                <div class="card-body">
+                    <div class="frame-container">
+                        <img id="result-frame" src="/api/latest_result_image" alt="最近关键帧">
+                        <div class="frame-overlay">
+                            <div class="frame-corner tl"></div>
+                            <div class="frame-corner tr"></div>
+                            <div class="frame-corner bl"></div>
+                            <div class="frame-corner br"></div>
+                        </div>
+                        <div class="frame-status" id="frame-status">等待事件触发</div>
+                        <div class="frame-time" id="frame-time">--:--:--</div>
+                    </div>
+                    <div class="frame-meta">
+                        <div class="frame-meta-item" id="last-update">
+                            <span class="dot"></span>
+                            <span>上次更新：等待中...</span>
+                        </div>
+                        <div class="frame-meta-item" id="scene-status">
+                            <span class="dot"></span>
+                            <span>当前场景稳定，暂无新关键帧上传</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：本次识别结果 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">本次识别结果</span>
+                    <span class="card-badge">ANALYSIS</span>
+                </div>
+                <div class="card-body">
+                    <div id="result-content">
+                        <div class="waiting-state">
+                            <div class="waiting-icon"></div>
+                            <div class="waiting-text">等待事件触发...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 事件记录 -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">事件记录</span>
+                <span class="card-badge">HISTORY</span>
+            </div>
+            <div class="card-body" style="padding: 0;">
+                <div class="event-table-wrapper">
+                    <table class="event-table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>事件类型</th>
+                                <th>识别结果</th>
+                                <th>置信度</th>
+                                <th>人脸数</th>
+                                <th>处理耗时</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="event-list">
+                            <tr>
+                                <td colspan="7">
+                                    <div class="empty-state">暂无事件记录</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 元素引用
+        const resultFrame = document.getElementById('result-frame');
+        const frameStatus = document.getElementById('frame-status');
+        const frameTime = document.getElementById('frame-time');
+        const lastUpdate = document.getElementById('last-update');
+        const sceneStatus = document.getElementById('scene-status');
+        const resultContent = document.getElementById('result-content');
+        const eventList = document.getElementById('event-list');
+        const eventCount = document.getElementById('event-count');
+        const statUploaded = document.getElementById('stat-uploaded');
+        const statEvents = document.getElementById('stat-events');
+        const statProcessTime = document.getElementById('stat-process-time');
+        const statLastConfidence = document.getElementById('stat-last-confidence');
+
+        let lastTimestamp = 0;
+
+        // 获取最新识别结果
+        async function fetchResult() {
+            try {
+                const res = await fetch('/api/latest_result');
+                const data = await res.json();
+
+                if (data.timestamp && data.timestamp !== lastTimestamp) {
+                    lastTimestamp = data.timestamp;
+                    updateResultDisplay(data);
+                    resultFrame.src = '/api/latest_result_image?t=' + Date.now();
+                }
+            } catch (e) {
+                console.error('获取结果失败:', e);
+            }
+        }
+
+        // 更新识别结果显示
+        function updateResultDisplay(data) {
+            const time = new Date(data.timestamp * 1000).toLocaleTimeString();
+            const timeStr = new Date(data.timestamp * 1000).toLocaleString();
+
+            frameTime.textContent = time;
+            lastUpdate.innerHTML = `<span class="dot"></span><span>上次更新：${timeStr}</span>`;
+
+            if (data.status === 'ok' && data.faces && data.faces.length > 0) {
+                sceneStatus.innerHTML = '<span class="dot"></span><span>检测到场景变化，已上传关键帧并完成识别</span>';
+                sceneStatus.className = 'frame-meta-item success';
+                frameStatus.textContent = '识别成功';
+                frameStatus.style.color = 'var(--accent-green)';
+                frameStatus.style.borderColor = 'rgba(0, 255, 136, 0.3)';
+
+                const face = data.faces[0];
+                const confidence = (face.confidence * 100).toFixed(1);
+
+                resultContent.innerHTML = `
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="result-label">识别状态</div>
+                            <div class="result-value success">识别成功</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">姓名</div>
+                            <div class="result-value">${face.name}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">置信度</div>
+                            <div class="result-value">${confidence}%</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">人脸数量</div>
+                            <div class="result-value">${data.faces.length}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">触发原因</div>
+                            <div class="result-value">场景变化</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">处理耗时</div>
+                            <div class="result-value">${data.process_time_ms || '--'} ms</div>
+                        </div>
+                    </div>
+                `;
+
+                statProcessTime.innerHTML = `${data.process_time_ms || '--'}<span class="stat-unit">ms</span>`;
+                statLastConfidence.innerHTML = `${confidence}<span class="stat-unit">%</span>`;
+            } else if (data.status === 'no_face') {
+                sceneStatus.innerHTML = '<span class="dot"></span><span>检测到场景变化，但未检测到人脸</span>';
+                sceneStatus.className = 'frame-meta-item warning';
+                frameStatus.textContent = '无人脸';
+                frameStatus.style.color = 'var(--accent-amber)';
+                frameStatus.style.borderColor = 'rgba(255, 184, 0, 0.3)';
+
+                resultContent.innerHTML = `
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="result-label">识别状态</div>
+                            <div class="result-value warning">无人脸</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">触发原因</div>
+                            <div class="result-value">场景变化</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                sceneStatus.innerHTML = '<span class="dot"></span><span>识别失败</span>';
+                sceneStatus.className = 'frame-meta-item';
+                frameStatus.textContent = '错误';
+                frameStatus.style.color = 'var(--accent-red)';
+                frameStatus.style.borderColor = 'rgba(255, 51, 102, 0.3)';
+
+                resultContent.innerHTML = `
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="result-label">识别状态</div>
+                            <div class="result-value error">错误</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // 获取统计数据
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const data = await res.json();
+                statUploaded.textContent = data.uploaded_frames || 0;
+                statEvents.textContent = data.event_count || 0;
+                eventCount.textContent = 'EVENTS: ' + (data.event_count || 0);
+            } catch (e) {
+                console.error('获取统计失败:', e);
+            }
+        }
+
+        // 获取事件记录
+        async function fetchEvents() {
+            try {
+                const res = await fetch('/api/events');
+                const data = await res.json();
+
+                if (data.events && data.events.length > 0) {
+                    let html = '';
+                    data.events.forEach(event => {
+                        const confidenceStr = event.confidence ? (event.confidence * 100).toFixed(1) + '%' : '-';
+                        let badgeClass = 'badge-success';
+                        let badgeText = '成功';
+                        if (event.status === '无人脸') {
+                            badgeClass = 'badge-warning';
+                            badgeText = '无人脸';
+                        } else if (event.status === '未知人员') {
+                            badgeClass = 'badge-warning';
+                            badgeText = '未知';
+                        } else if (event.status === '错误') {
+                            badgeClass = 'badge-error';
+                            badgeText = '错误';
+                        }
+
+                        html += `
+                            <tr>
+                                <td>${event.time}</td>
+                                <td>${event.event_type}</td>
+                                <td>${event.result}</td>
+                                <td>${confidenceStr}</td>
+                                <td>${event.face_count}</td>
+                                <td>${event.process_time_ms} ms</td>
+                                <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                            </tr>
+                        `;
+                    });
+                    eventList.innerHTML = html;
+                }
+            } catch (e) {
+                console.error('获取事件记录失败:', e);
+            }
+        }
+
+        // 定时轮询
+        setInterval(fetchResult, 2000);
+        setInterval(fetchStats, 5000);
+        setInterval(fetchEvents, 3000);
+
+        // 初始加载
+        fetchResult();
+        fetchStats();
+        fetchEvents();
+    </script>
+</body>
+</html>
