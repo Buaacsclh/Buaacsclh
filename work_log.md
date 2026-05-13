@@ -158,3 +158,47 @@
 - [ ] GPU 加速（用户正在下载 CUDA Toolkit）
 - [ ] 推送代码到 GitHub
 - [ ] 更新 project.md 和 README.md
+
+## 2026-05-13 - ESP32 上传策略优化
+
+### 背景
+
+场景变化触发瞬间上传的照片容易模糊，导致 PC 端 ArcFace 识别置信度低。优化方案：触发 → 等待稳定 → 连拍候选帧 → 选择最清晰的一张 → 冷却期。
+
+### 完成内容
+
+**ESP32 固件优化**
+- [x] esp32/src/config.h — 新增上传策略参数
+  - `STABLE_DELAY_MS 500` — 场景变化后等待稳定时间
+  - `BURST_COUNT 3` — 连拍候选帧数量
+  - `BURST_INTERVAL_MS 180` — 连拍间隔
+  - `UPLOAD_COOLDOWN_MS 2000` — 上传冷却时间
+- [x] esp32/src/main.cpp — 重写 loop() 函数
+  - 场景变化触发后，释放判断帧
+  - 等待 500ms 稳定
+  - 连拍 3 张候选帧（间隔 180ms）
+  - 选择 JPEG 最大的帧上传（最清晰）
+  - 进入 2000ms 冷却期
+  - 详细串口日志输出
+
+**编译与烧录**
+- [x] PlatformIO 编译成功（RAM 15.1%, Flash 27.1%）
+- [x] 修改 platformio.ini — 注释掉 COM7 硬编码，改为自动检测
+- [x] ESP32-CAM 烧录成功（COM7 自动检测，87.77 秒）
+
+### 测试结果
+- 编译通过，无错误
+- 烧录成功，ESP32-CAM 自动重启
+- 用户测试反馈："这次弄得还行"
+
+### 技术细节
+- 内存管理：每个 `camera_capture()` 都有对应的 `camera_release()`
+- 候选帧选择：JPEG 大小越大，图像越清晰（细节越多，压缩率越低）
+- 冷却期：避免重复触发，节省带宽和计算资源
+
+### 待完成
+- [ ] 端到端识别置信度对比测试（优化前 vs 优化后）
+- [ ] ESP32 端统计上报（可选）
+- [ ] GPU 加速（用户正在下载 CUDA Toolkit）
+- [ ] 推送代码到 GitHub
+- [ ] 更新 project.md 和 README.md

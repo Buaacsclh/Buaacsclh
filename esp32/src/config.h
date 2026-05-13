@@ -19,6 +19,12 @@
 // 卸载决策算法阈值
 #define OFFLOAD_THRESHOLD   0.15f
 
+// 上传策略优化参数
+#define STABLE_DELAY_MS     500     // 场景变化后等待稳定时间（毫秒）
+#define BURST_COUNT         3       // 连拍候选帧数量
+#define BURST_INTERVAL_MS   180     // 连拍间隔（毫秒）
+#define UPLOAD_COOLDOWN_MS  2000    // 上传冷却时间（毫秒）
+
 // OLED 配置（预留）
 #define OLED_I2C_ADDRESS    0x3C
 #define OLED_SDA_PIN        14

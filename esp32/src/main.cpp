@@ -6,6 +6,7 @@
 #include "display.h"
 
 static OffloadDecider decider(OFFLOAD_THRESHOLD);
+static unsigned long lastUploadTime = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -49,7 +50,7 @@ void loop() {
         }
     }
 
-    // 拍照
+    // 拍照（用于判断）
     camera_fb_t* fb = camera_capture();
     if (fb == nullptr) {
         display_show_error("拍照失败");
@@ -57,25 +58,101 @@ void loop() {
         return;
     }
 
+    Serial.printf("[MAIN] 当前帧大小: %u bytes\n", fb->len);
+
     // 卸载决策
-    bool should_send = decider.should_upload(fb->len);
+    bool scene_changed = decider.should_upload(fb->len);
 
-    if (should_send) {
-        display_show_status("上传图片...");
+    // 冷却检查
+    unsigned long now = millis();
+    bool cooldown_ok = (now - lastUploadTime) > UPLOAD_COOLDOWN_MS;
 
-        RecognitionResult result = send_image(fb->buf, fb->len);
+    if (scene_changed && cooldown_ok) {
+        Serial.printf("[MAIN] 场景变化，触发上传\n");
+        Serial.printf("[MAIN] 冷却检查: 距上次上传 %lu ms > %d ms，允许上传\n",
+                      now - lastUploadTime, UPLOAD_COOLDOWN_MS);
 
-        if (result.status == "ok") {
-            display_show_result(result.name, result.confidence);
-        } else if (result.status == "no_face") {
-            display_show_status("未检测到人脸");
-        } else {
-            display_show_error("识别失败: " + result.status);
+        // 释放判断帧
+        camera_release(fb);
+
+        // 等待画面稳定
+        Serial.printf("[MAIN] 释放判断帧，等待稳定 %d ms...\n", STABLE_DELAY_MS);
+        display_show_status("等待画面稳定...");
+        delay(STABLE_DELAY_MS);
+
+        // 连拍候选帧
+        camera_fb_t* candidates[BURST_COUNT];
+        int best_index = 0;
+        size_t best_size = 0;
+
+        for (int i = 0; i < BURST_COUNT; i++) {
+            candidates[i] = camera_capture();
+            if (candidates[i] != nullptr) {
+                Serial.printf("[MAIN] 连拍候选帧 %d/%d: %u bytes\n",
+                              i + 1, BURST_COUNT, candidates[i]->len);
+
+                // 选择最大的作为最佳帧
+                if (candidates[i]->len > best_size) {
+                    best_size = candidates[i]->len;
+                    best_index = i;
+                }
+            } else {
+                Serial.printf("[MAIN] 连拍候选帧 %d/%d: 拍照失败\n",
+                              i + 1, BURST_COUNT);
+                candidates[i] = nullptr;
+            }
+
+            // 连拍间隔（最后一张不需要等待）
+            if (i < BURST_COUNT - 1) {
+                delay(BURST_INTERVAL_MS);
+            }
         }
-    }
 
-    // 释放 frame buffer
-    camera_release(fb);
+        // 上传最佳帧
+        if (candidates[best_index] != nullptr) {
+            Serial.printf("[MAIN] 选择最佳帧: %u bytes (帧 %d/%d)\n",
+                          best_size, best_index + 1, BURST_COUNT);
+            Serial.printf("[MAIN] 上传最佳帧...\n");
+            display_show_status("上传最佳帧...");
+
+            RecognitionResult result = send_image(
+                candidates[best_index]->buf,
+                candidates[best_index]->len
+            );
+
+            if (result.status == "ok") {
+                Serial.printf("[MAIN] 上传结果: ok, %s, %.2f\n",
+                              result.name.c_str(), result.confidence);
+                display_show_result(result.name, result.confidence);
+            } else if (result.status == "no_face") {
+                Serial.printf("[MAIN] 上传结果: no_face\n");
+                display_show_status("未检测到人脸");
+            } else {
+                Serial.printf("[MAIN] 上传结果: %s\n", result.status.c_str());
+                display_show_error("识别失败: " + result.status);
+            }
+
+            // 记录上传时间
+            lastUploadTime = millis();
+            Serial.printf("[MAIN] 进入冷却期 %d ms\n", UPLOAD_COOLDOWN_MS);
+        }
+
+        // 释放所有候选帧
+        for (int i = 0; i < BURST_COUNT; i++) {
+            if (candidates[i] != nullptr) {
+                camera_release(candidates[i]);
+            }
+        }
+
+    } else {
+        // 不需要上传或在冷却期
+        if (scene_changed && !cooldown_ok) {
+            Serial.printf("[MAIN] 场景变化，但在冷却期，跳过上传\n");
+        }
+
+        // 释放判断帧
+        camera_release(fb);
+    }
 
     delay(LOOP_INTERVAL_MS);
 }
