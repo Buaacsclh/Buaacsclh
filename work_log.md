@@ -1,5 +1,59 @@
 # 工作日志
 
+## 2026-05-14 - ESP32 综合上传决策器重构
+
+### 背景
+旧策略仅靠两帧 JPEG 大小差分 (阈值 0.15) 触发上传，存在"长时间不更新"和"上传模糊帧"
+问题。与 GPT-5.5 多轮讨论后，设计并实现了轻量级混合边缘卸载机制。
+
+### 完成内容
+
+**ESP32 端重构**
+- [x] esp32/src/config.h — 参数替换
+  - 删除: OFFLOAD_THRESHOLD, BURST_COUNT, BURST_INTERVAL_MS
+  - 新增: DIFF_THRESHOLD_RATIO 0.05, FORCE_UPLOAD_INTERVAL_MS 5000,
+    SIZE_WINDOW 5, MIN_AVG_SIZE 2000
+- [x] esp32/src/offload.h — OffloadDecider 重构为综合上传决策器
+  - 新增 Decision 结构体 (10 字段: shouldUpload, byDiff, byInterval,
+    inCooldown, windowReady, currentSize, avgSize, diffRatio, reason)
+  - 维护 SIZE_WINDOW 帧滑动窗口环形缓冲区
+  - 方法: decide(), mark_uploaded(), reset()
+- [x] esp32/src/offload.cpp — 混合决策逻辑
+  - 首帧直接上传 (reason="first")
+  - 滑动窗口差分判断 (windowReady && avgSize>=MIN_AVG_SIZE && diffRatio>0.05)
+  - 定时保底刷新 (距上次上传 >= 5s)
+  - 上传冷却控制 (2s 内 diff 抑制)
+  - 判断帧与上传帧分离 (释放判断帧 → wait 500ms → 重拍稳定帧上传)
+- [x] esp32/src/main.cpp — 精简 loop()
+  - 去掉连拍逻辑 (BURST_COUNT/BURST_INTERVAL_MS)
+  - HTTP 失败时不调用 mark_uploaded()
+  - 每轮串口日志输出完整决策状态
+
+**uploadReason 链路打通**
+- [x] esp32/src/network.h/.cpp — send_image() 增加 reason 参数，拼到 URL
+  `?reason=interval/diff/first`
+- [x] esp32/src/main.cpp — 调用 send_image() 时传入 d.reason
+- [x] server/api/routes.py — recognize() 读取 reason 查询参数，映射为中文显示
+  (first→"首次上传", diff→"场景变化触发", interval→"定时保底")
+
+### 测试结果
+- 编译通过 (RAM 15.1%, Flash 27.1%)
+- 烧录确认新固件生效
+- 网页事件表可区分三种触发原因
+- 场景稳定时 interval 保底 7-10s 规律上传
+- 有人出现时 diff 快速触发 (2-3s)
+- 48h 运行稳定，frame buffer 无泄漏
+
+### 学术定位
+用 JPEG 文件大小作为零成本视觉变化代理信号，结合事件驱动 (滑动窗口差分) +
+时间驱动 (定时保底) + 反馈抑制 (冷却控制) 的混合边缘卸载机制。
+
+### 待完成
+- [ ] 端到端置信度对比测试 (优化前后)
+- [ ] ESP32 调试串口解决方案 (DZQJ 板子 UART 引脚不标准)
+- [ ] GPU 加速 (CUDA)
+- [ ] 推送代码到 GitHub
+
 ## 2026-05-12 - 阶段一 + 阶段二
 
 ### 完成内容

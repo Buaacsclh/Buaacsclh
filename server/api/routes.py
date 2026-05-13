@@ -68,7 +68,10 @@ async def health_check() -> HealthResponse:
 
 
 @router.post("/api/recognize", response_model=RecognizeResponse)
-async def recognize(image: UploadFile = File(...)) -> RecognizeResponse:
+async def recognize(
+    image: UploadFile = File(...),
+    reason: str = "unknown",
+) -> RecognizeResponse:
     """接收 JPEG 图片，进行人脸检测和识别，返回识别结果。
 
     流程：图片解码 → YOLO 人脸检测 → ArcFace 特征提取 → 数据库比对
@@ -146,7 +149,11 @@ async def recognize(image: UploadFile = File(...)) -> RecognizeResponse:
     # 添加事件记录
     event = {
         "time": time.strftime("%H:%M:%S", time.localtime(timestamp)),
-        "event_type": "场景变化",
+        "event_type": {
+            "first": "首次上传",
+            "diff": "场景变化触发",
+            "interval": "定时保底",
+        }.get(reason, reason),
         "result": result.faces[0].name if result.faces else "no_face",
         "confidence": result.faces[0].confidence if result.faces else 0,
         "face_count": len(result.faces),

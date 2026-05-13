@@ -35,6 +35,7 @@ bool wifi_reconnect();
  * @param jpeg_len JPEG 数据长度
  * @return RecognitionResult 识别结果
  */
-RecognitionResult send_image(const uint8_t* jpeg_buf, size_t jpeg_len);
+RecognitionResult send_image(const uint8_t* jpeg_buf, size_t jpeg_len,
+                                const char* reason = "unknown");
 
 #endif

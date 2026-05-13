@@ -16,14 +16,13 @@
 #define CAMERA_FRAME_SIZE   FRAMESIZE_VGA   // 640x480
 #define CAMERA_JPEG_QUALITY 12              // 0-63，越小质量越高
 
-// 卸载决策算法阈值
-#define OFFLOAD_THRESHOLD   0.15f
-
-// 上传策略优化参数
-#define STABLE_DELAY_MS     500     // 场景变化后等待稳定时间（毫秒）
-#define BURST_COUNT         3       // 连拍候选帧数量
-#define BURST_INTERVAL_MS   180     // 连拍间隔（毫秒）
-#define UPLOAD_COOLDOWN_MS  2000    // 上传冷却时间（毫秒）
+// 卸载决策算法参数
+#define DIFF_THRESHOLD_RATIO        0.05f   // 滑动平均变化率阈值
+#define FORCE_UPLOAD_INTERVAL_MS    5000    // 定时保底刷新间隔（毫秒）
+#define STABLE_DELAY_MS             500     // 场景变化后等待稳定时间（毫秒）
+#define COOLDOWN_MS                 2000    // 上传冷却时间（毫秒）
+#define SIZE_WINDOW                 5       // 滑动窗口帧数
+#define MIN_AVG_SIZE                2000    // 最小平均 JPEG 大小，低于此值不启 diff
 
 // OLED 配置（预留）
 #define OLED_I2C_ADDRESS    0x3C

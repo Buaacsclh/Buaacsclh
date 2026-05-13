@@ -45,7 +45,8 @@ bool wifi_reconnect() {
     return true;
 }
 
-RecognitionResult send_image(const uint8_t* jpeg_buf, size_t jpeg_len) {
+RecognitionResult send_image(const uint8_t* jpeg_buf, size_t jpeg_len,
+                                const char* reason) {
     RecognitionResult result;
     result.status = "error";
     result.name = "";
@@ -56,7 +57,8 @@ RecognitionResult send_image(const uint8_t* jpeg_buf, size_t jpeg_len) {
         return result;
     }
 
-    String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + SERVER_URL;
+    String path_with_reason = String(SERVER_URL) + "?reason=" + String(reason);
+    String url = String("http://") + SERVER_HOST + ":" + SERVER_PORT + path_with_reason;
 
     WiFiClient client;
     HTTPClient http;
@@ -101,7 +103,7 @@ RecognitionResult send_image(const uint8_t* jpeg_buf, size_t jpeg_len) {
     }
 
     // 发送 HTTP 请求头
-    client.printf("POST %s HTTP/1.1\r\n", SERVER_URL);
+    client.printf("POST %s HTTP/1.1\r\n", path_with_reason.c_str());
     client.printf("Host: %s:%d\r\n", SERVER_HOST, SERVER_PORT);
     client.printf("Content-Type: multipart/form-data; boundary=%s\r\n", boundary.c_str());
     client.printf("Content-Length: %u\r\n", total_len);
